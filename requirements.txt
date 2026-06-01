@@ -1,0 +1,7 @@
+streamlit
+yfinance
+edgartools
+pandas
+numpy
+requests
+scipy
