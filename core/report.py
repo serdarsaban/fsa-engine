@@ -1,7 +1,12 @@
 import os
 import datetime
 import pandas as pd
-from IPython.display import HTML, display
+
+try:
+    from IPython.display import HTML, display
+except ImportError:
+    HTML = None
+    display = None
 
 
 # ============================================================
@@ -1008,7 +1013,7 @@ def save_and_display_report(ticker, r=0.09, project_root=None,
 
     print("Saved: {}".format(filepath))
 
-    if display_html:
+    if display_html and display is not None:
         display(HTML(html))
 
     return filepath
