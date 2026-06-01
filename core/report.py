@@ -596,12 +596,13 @@ def generate_report(ticker, r=0.09, project_root=None):
         sys.path.insert(0, project_root)
         sys.path.insert(0, os.path.join(project_root, "core"))
 
-    from valuation import run_valuation
-    from rnoa      import calculate_rnoa_series
-    from leverage  import calculate_leverage
-    from quality   import (calculate_accruals,
-                           get_quality_score,
-                           generate_commentary)
+    from valuation              import run_valuation
+    from rnoa                   import calculate_rnoa_series
+    from leverage               import calculate_leverage
+    from quality                import (calculate_accruals,
+                                        get_quality_score,
+                                        generate_commentary)
+    from valuation_calculator   import run_eps_valuation
 
     # Reset tip counter for each report
     _tip_counter[0] = 0
@@ -616,6 +617,12 @@ def generate_report(ticker, r=0.09, project_root=None):
     lev     = calculate_leverage(ticker, r=r)
     print("  Fetching quality...")
     qual_df = calculate_accruals(ticker, years=4)
+    print("  Fetching EPS valuation...")
+    try:
+        eps_val = run_eps_valuation(ticker)
+        eps_html = eps_val.get("html", "")
+    except Exception as e:
+        eps_html = f"<p style='color:#e74c3c'>EPS valuation unavailable: {e}</p>"
 
     qual_latest = qual_df.iloc[-1]
     q_score, q_signal, _ = get_quality_score(
@@ -875,6 +882,14 @@ def generate_report(ticker, r=0.09, project_root=None):
   <div class="commentary">{q_comment}</div>
 </div>
 
+<!-- EPS VALUATION -->
+<div class="card">
+  <h2>EPS Valuation (Book Calculator)</h2>
+  <p class="card-desc">EPS-based fair value using CAGR triangulation and P/E exit multiples.
+  Independent methodology — compare with the residual earnings model above.</p>
+  {eps_html}
+</div>
+
 <!-- SUMMARY -->
 <div class="card">
   <h2>Investment Summary</h2>
@@ -981,6 +996,7 @@ def generate_report(ticker, r=0.09, project_root=None):
         strengths_li  = li(summary["strengths"]),
         risks_li      = li(summary["risks"]),
         investigate_li= li(summary["investigate"]),
+        eps_html        = eps_html,
         tip_OI          = tip("OI"),
         tip_gap         = tip("gap"),
         tip_ROE_actual  = tip("ROE_actual"),
