@@ -685,11 +685,11 @@ def generate_report(ticker, r=0.09, project_root=None):
     print("  Fetching valuation...")
     val     = run_valuation(ticker, r=r, verbose=False)
     print("  Fetching RNOA series...")
-    rnoa_df = calculate_rnoa_series(ticker, r=r, years=4)
+    rnoa_df = calculate_rnoa_series(ticker, r=r, years=5)
     print("  Fetching leverage...")
     lev     = calculate_leverage(ticker, r=r)
     print("  Fetching quality...")
-    qual_df = calculate_accruals(ticker, years=4)
+    qual_df = calculate_accruals(ticker, years=5)
     print("  Fetching EPS valuation...")
     try:
         eps_val  = run_eps_valuation(ticker)
