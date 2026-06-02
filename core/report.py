@@ -944,13 +944,6 @@ def generate_report(ticker, r=0.09, project_root=None):
   {bq_html}
 </div>
 
-<!-- BALANCE QUALITY -->
-<div class="card">
-  <h2>Balance Sheet &amp; Credit Quality (Ch 9 / Ch 13)</h2>
-  <p class="card-desc">Balance sheet risk items, Altman Z-score and Piotroski F-score.</p>
-  {bq_html}
-</div>
-
 <!-- SUMMARY -->
 <div class="card">
   <h2>Investment Summary</h2>
