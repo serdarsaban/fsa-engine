@@ -17,18 +17,32 @@ import yfinance as yf
 
 
 def get_market_data(ticker: str) -> dict:
-    """Fetch current market cap and price from yfinance."""
-    stock = yf.Ticker(ticker)
-    info  = stock.info
-    price      = info.get("currentPrice") or info.get("regularMarketPrice")
-    market_cap = info.get("marketCap")
-    shares     = info.get("sharesOutstanding")
-    return {
-        "ticker":       ticker.upper(),
-        "price":        price,
-        "market_cap_m": market_cap / 1e6 if market_cap else None,
-        "shares_m":     shares     / 1e6 if shares     else None,
-    }
+    """Fetch current market cap and price from yfinance with retry."""
+    import time
+    last_err = None
+    for attempt in range(3):
+        try:
+            stock = yf.Ticker(ticker)
+            info  = stock.fast_info
+            price      = getattr(info, "last_price", None)
+            market_cap = getattr(info, "market_cap", None)
+            shares     = getattr(info, "shares", None)
+            if price is None:
+                full_info  = stock.info
+                price      = full_info.get("currentPrice") or full_info.get("regularMarketPrice")
+                market_cap = full_info.get("marketCap")
+                shares     = full_info.get("sharesOutstanding")
+            return {
+                "ticker":       ticker.upper(),
+                "price":        price,
+                "market_cap_m": market_cap / 1e6 if market_cap else None,
+                "shares_m":     shares     / 1e6 if shares     else None,
+            }
+        except Exception as e:
+            last_err = e
+            if attempt < 2:
+                time.sleep(2 + attempt * 3)
+    raise last_err
 
 
 def implied_growth_rate(
