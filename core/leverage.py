@@ -102,8 +102,18 @@ def calculate_leverage(ticker: str, r: float = 0.09) -> dict:
     )
     ROE_actual = net_income / B if B != 0 else None
 
-    stock   = yf.Ticker(ticker)
-    mkt_cap = stock.info.get("marketCap", 0) / 1e6
+    import time
+    mkt_cap = 0
+    for attempt in range(3):
+        try:
+            stock   = yf.Ticker(ticker)
+            fast    = stock.fast_info
+            mkt_cap = (getattr(fast, "market_cap", None) or
+                       stock.info.get("marketCap", 0)) / 1e6
+            break
+        except Exception:
+            if attempt < 2:
+                time.sleep(2 + attempt * 3)
     ML      = ND / mkt_cap if mkt_cap != 0 else None
 
     return {
