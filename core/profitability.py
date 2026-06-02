@@ -359,6 +359,8 @@ def _fmt_x(v):
     return f"{v:.2f}x" if v is not None else "—"
 
 
+AMBER_STYLE_P = 'style="background:#fffbf0;border-left:3px solid #f39c12;border-radius:0 6px 6px 0;padding:10px 14px;font-size:13px;color:#444;line-height:1.6;margin-top:8px"'
+
 def _render_html(ticker, pm_df, ato_df, ollev_df, verdict) -> str:
     """Render Ch 6 profitability as HTML section."""
     rows = []
