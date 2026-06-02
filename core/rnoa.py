@@ -145,7 +145,7 @@ def get_noa_series(facts: dict, years: int = 4) -> pd.DataFrame:
 
 
 def calculate_rnoa_series(ticker: str, r: float = 0.09,
-                           years: int = 4) -> pd.DataFrame:
+                           years: int = 5) -> pd.DataFrame:
     """
     Calculate RNOA, PM, ATO, ReOI for last N fiscal years.
 
