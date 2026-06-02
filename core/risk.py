@@ -43,10 +43,23 @@ def run_risk_diagnostic(ticker: str, r: float = 0.09) -> dict:
     ND0  = latest_noa["ND"]
     OI1  = latest_is["operating_income_aftertax"]
 
-    stock  = yf.Ticker(ticker)
-    info   = stock.info
-    P0     = (info.get("marketCap") or 0) / 1e6
-    price  = info.get("currentPrice") or info.get("regularMarketPrice")
+    import time
+    P0 = 0
+    price = None
+    for attempt in range(3):
+        try:
+            stock = yf.Ticker(ticker)
+            fast  = stock.fast_info
+            P0    = (getattr(fast, "market_cap", None) or 0) / 1e6
+            price = getattr(fast, "last_price", None)
+            if not P0:
+                info  = stock.info
+                P0    = (info.get("marketCap") or 0) / 1e6
+                price = info.get("currentPrice") or info.get("regularMarketPrice")
+            break
+        except Exception:
+            if attempt < 2:
+                time.sleep(2 + attempt * 3)
 
     ReOI1           = OI1 - r * NOA0
     no_growth_value = B0 + ReOI1 / r if r != 0 else None
