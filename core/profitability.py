@@ -438,13 +438,22 @@ def _render_html(ticker, pm_df, ato_df, ollev_df, verdict) -> str:
         a(f'<th style="background:#f0f2f5;padding:8px 10px;text-align:right;font-weight:500;font-size:12px;color:#555">{h}</th>')
     a('</tr></thead><tbody>')
     for _, row in ato_df.iterrows():
-        ccc_c = "#27ae60" if row["CCC"] and row["CCC"] < 0 else "#e74c3c"
+        ccc_val = row["CCC"]
+        if ccc_val is None:
+            ccc_c    = "#95a5a6"
+            ccc_disp = "N/A"
+        elif ccc_val < 0:
+            ccc_c    = "#27ae60"
+            ccc_disp = _fmt_d(ccc_val)
+        else:
+            ccc_c    = "#e74c3c"
+            ccc_disp = _fmt_d(ccc_val)
         a('<tr>')
         a(f'<td style="padding:8px 10px;border-bottom:1px solid #f0f2f5;color:#666">{row["fiscal_year_end"]}</td>')
-        a(f'<td style="padding:8px 10px;border-bottom:1px solid #f0f2f5;text-align:right">{_fmt_d(row["DSO"])}</td>')
-        a(f'<td style="padding:8px 10px;border-bottom:1px solid #f0f2f5;text-align:right">{_fmt_d(row["DIO"])}</td>')
-        a(f'<td style="padding:8px 10px;border-bottom:1px solid #f0f2f5;text-align:right">{_fmt_d(row["DPO"])}</td>')
-        a(f'<td style="padding:8px 10px;border-bottom:1px solid #f0f2f5;text-align:right;font-weight:600;color:{ccc_c}">{_fmt_d(row["CCC"])}</td>')
+        a(f'<td style="padding:8px 10px;border-bottom:1px solid #f0f2f5;text-align:right;color:#888">{_fmt_d(row["DSO"]) if row["DSO"] else "N/A"}</td>')
+        a(f'<td style="padding:8px 10px;border-bottom:1px solid #f0f2f5;text-align:right;color:#888">{_fmt_d(row["DIO"]) if row["DIO"] else "N/A"}</td>')
+        a(f'<td style="padding:8px 10px;border-bottom:1px solid #f0f2f5;text-align:right">{_fmt_d(row["DPO"]) if row["DPO"] else "N/A"}</td>')
+        a(f'<td style="padding:8px 10px;border-bottom:1px solid #f0f2f5;text-align:right;font-weight:600;color:{ccc_c}">{ccc_disp}</td>')
         a('</tr>')
     a('</tbody></table></div>')
 
