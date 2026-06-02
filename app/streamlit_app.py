@@ -46,26 +46,33 @@ st.markdown("""
 </div>
 """, unsafe_allow_html=True)
 
-# ── SIDEBAR ──────────────────────────────────────────────────
+# ── SESSION STATE ─────────────────────────────────────────────
+if "analysed" not in st.session_state:
+    st.session_state.analysed = False
+if "ticker" not in st.session_state:
+    st.session_state.ticker = "AAPL"
+if "r" not in st.session_state:
+    st.session_state.r = 0.09
+
+# ── SIDEBAR ───────────────────────────────────────────────────
 with st.sidebar:
     st.markdown("### Settings")
     st.markdown("---")
 
     ticker = st.text_input(
         "Stock Ticker",
-        value="AAPL",
+        value=st.session_state.ticker,
         placeholder="e.g. MSFT, AAPL, NVDA",
     ).upper().strip()
 
     r = st.slider(
         "Required Return (%)",
-        min_value=5, max_value=15, value=9, step=1,
-        help="Hurdle rate for Penman & Pope valuation"
+        min_value=5, max_value=15,
+        value=int(st.session_state.r * 100),
+        step=1,
     ) / 100
 
     st.markdown("---")
-
-    # Gemini API key for Tab 3
     st.markdown("**Tab 3 — Text Analysis**")
     gemini_key = st.text_input(
         "Gemini API Key",
@@ -75,7 +82,16 @@ with st.sidebar:
     )
 
     st.markdown("---")
-    run_button = st.button("Run Analysis", type="primary")
+
+    if st.button("Run Analysis", type="primary"):
+        st.session_state.analysed = True
+        st.session_state.ticker   = ticker
+        st.session_state.r        = r
+
+    if st.session_state.analysed:
+        if st.button("Reset / New Ticker"):
+            st.session_state.analysed = False
+            st.rerun()
 
     st.markdown("---")
     st.markdown(
@@ -85,8 +101,8 @@ with st.sidebar:
         unsafe_allow_html=True
     )
 
-# ── MAIN ─────────────────────────────────────────────────────
-if not run_button:
+# ── MAIN AREA ─────────────────────────────────────────────────
+if not st.session_state.analysed:
     col1, col2, col3 = st.columns(3)
     with col1:
         st.markdown("#### 📚 Tab 1 — Penman & Pope")
@@ -120,150 +136,154 @@ if not run_button:
     st.markdown("Enter a ticker and click **Run Analysis** to start.")
 
 else:
-    if not ticker:
-        st.error("Please enter a stock ticker.")
-    else:
-        tab1, tab2, tab3 = st.tabs([
-            "📚 Penman & Pope",
-            "📈 Standard Analysis",
-            "📄 10-K/Q Text Analysis",
-        ])
+    # Use the saved ticker/r from session state
+    active_ticker = st.session_state.ticker
+    active_r      = st.session_state.r
 
-        # ── TAB 1 ─────────────────────────────────────────────
-        with tab1:
-            with st.spinner(f"Running Penman & Pope analysis on {ticker}..."):
-                try:
-                    from report import generate_report
-                    import datetime
+    st.markdown(
+        f"**Analysing: {active_ticker}** "
+        f"&nbsp;|&nbsp; Required return: {active_r:.0%} "
+        f"&nbsp;|&nbsp; *Use sidebar to change settings*"
+    )
+    st.markdown("---")
 
-                    html  = generate_report(ticker, r=r,
-                                            project_root=PROJECT_ROOT)
-                    today = datetime.date.today().strftime("%Y-%m-%d")
-                    st.success(f"Report generated for {ticker}")
-                    st.download_button(
-                        label="⬇️ Download Report",
-                        data=html,
-                        file_name=f"{ticker}_{today}.html",
-                        mime="text/html",
-                    )
-                    st.markdown("---")
-                    st.components.v1.html(html, height=5000, scrolling=True)
-                except Exception as e:
-                    st.error(f"Error: {str(e)}")
-                    st.exception(e)
+    tab1, tab2, tab3 = st.tabs([
+        "📚 Penman & Pope",
+        "📈 Standard Analysis",
+        "📄 10-K/Q Text Analysis",
+    ])
 
-        # ── TAB 2 ─────────────────────────────────────────────
-        with tab2:
-            with st.spinner(f"Running standard analysis on {ticker}..."):
-                try:
-                    from standard import generate_standard_html
-                    import datetime
+    # ── TAB 1 ──────────────────────────────────────────────────
+    with tab1:
+        with st.spinner(f"Running Penman & Pope analysis on {active_ticker}..."):
+            try:
+                from report import generate_report
+                import datetime
 
-                    std_html = generate_standard_html(ticker)
-                    today    = datetime.date.today().strftime("%Y-%m-%d")
-                    st.success(f"Standard analysis generated for {ticker}")
-                    st.download_button(
-                        label="⬇️ Download Standard Report",
-                        data=std_html,
-                        file_name=f"{ticker}_standard_{today}.html",
-                        mime="text/html",
-                        key="dl_standard",
-                    )
-                    st.markdown("---")
-                    st.components.v1.html(
-                        f"<div style='max-width:960px;margin:0 auto;"
-                        f"font-family:-apple-system,sans-serif'>{std_html}</div>",
-                        height=4000,
-                        scrolling=True
-                    )
-                except Exception as e:
-                    st.error(f"Error: {str(e)}")
-                    st.exception(e)
-
-        # ── TAB 3 ─────────────────────────────────────────────
-        with tab3:
-            if not gemini_key:
-                st.warning(
-                    "Enter your Gemini API key in the sidebar to use text analysis."
+                html  = generate_report(active_ticker, r=active_r,
+                                        project_root=PROJECT_ROOT)
+                today = datetime.date.today().strftime("%Y-%m-%d")
+                st.success(f"Report generated for {active_ticker}")
+                st.download_button(
+                    label="⬇️ Download Report",
+                    data=html,
+                    file_name=f"{active_ticker}_{today}.html",
+                    mime="text/html",
                 )
-            else:
-                # Show filing selector
-                try:
-                    from text_analysis import get_recent_filings
+                st.markdown("---")
+                st.components.v1.html(html, height=5000, scrolling=True)
+            except Exception as e:
+                st.error(f"Error: {str(e)}")
+                st.exception(e)
 
-                    with st.spinner("Loading available filings..."):
-                        filings = get_recent_filings(ticker, n=8)
+    # ── TAB 2 ──────────────────────────────────────────────────
+    with tab2:
+        with st.spinner(f"Running standard analysis on {active_ticker}..."):
+            try:
+                from standard import generate_standard_html
+                import datetime
 
-                    filing_labels = [f["label"] for f in filings]
-                    selected_idx  = st.selectbox(
-                        "Select filing to analyse:",
-                        range(len(filing_labels)),
-                        format_func=lambda i: filing_labels[i],
-                    )
+                std_html = generate_standard_html(active_ticker)
+                today    = datetime.date.today().strftime("%Y-%m-%d")
+                st.success(f"Standard analysis generated for {active_ticker}")
+                st.download_button(
+                    label="⬇️ Download Standard Report",
+                    data=std_html,
+                    file_name=f"{active_ticker}_standard_{today}.html",
+                    mime="text/html",
+                    key="dl_standard",
+                )
+                st.markdown("---")
+                st.components.v1.html(
+                    f"<div style='max-width:960px;margin:0 auto;"
+                    f"font-family:-apple-system,sans-serif'>{std_html}</div>",
+                    height=4000,
+                    scrolling=True
+                )
+            except Exception as e:
+                st.error(f"Error: {str(e)}")
+                st.exception(e)
 
-                    col_a, col_b = st.columns([3,1])
-                    with col_b:
-                        analyse_btn = st.button(
-                            "Analyse Filing",
-                            type="primary",
-                            key="analyse_btn"
-                        )
+    # ── TAB 3 ──────────────────────────────────────────────────
+    with tab3:
+        if not gemini_key:
+            st.warning(
+                "Enter your Gemini API key in the sidebar to use text analysis. "
+                "Get a free key at aistudio.google.com"
+            )
+        else:
+            try:
+                from text_analysis import get_recent_filings
 
-                    with col_a:
-                        selected = filings[selected_idx]
-                        st.markdown(
-                            f"**{selected['form']}** · Period: {selected['period']} "
-                            f"· Filed: {selected['filed']}"
-                        )
+                with st.spinner("Loading available filings..."):
+                    filings = get_recent_filings(active_ticker, n=8)
 
-                    if analyse_btn:
-                        with st.spinner(
-                            f"Analysing {selected['form']} {selected['period']} "
-                            f"with Gemini... (~30 seconds)"
-                        ):
-                            try:
-                                from google import genai
-                                from text_analysis import run_text_analysis
-                                import datetime
+                st.markdown(f"**{len(filings)} filings found for {active_ticker}:**")
 
-                                g_client = genai.Client(api_key=gemini_key)
-                                g_model  = "models/gemini-2.5-flash"
+                selected_idx = st.selectbox(
+                    "Select filing to analyse:",
+                    range(len(filings)),
+                    format_func=lambda i: filings[i]["label"],
+                    key="filing_selector",
+                )
 
-                                result = run_text_analysis(
-                                    ticker, selected_idx,
-                                    g_client, g_model
-                                )
+                selected = filings[selected_idx]
+                st.info(
+                    f"**{selected['form']}** · Period: {selected['period']} "
+                    f"· Filed: {selected['filed']} · "
+                    f"[View on SEC EDGAR]({selected['doc_url']})"
+                )
 
-                                today = datetime.date.today().strftime("%Y-%m-%d")
-                                fname = f"{ticker}_{selected['form']}_{selected['period']}_{today}.html"
-                                full_html = (
-                                    "<html><body style='max-width:900px;margin:20px auto;"
-                                    "font-family:-apple-system,sans-serif'>"
-                                    + result["html"] + "</body></html>"
-                                )
+                if st.button("Analyse This Filing", type="primary",
+                             key="analyse_btn"):
+                    with st.spinner(
+                        f"Analysing {selected['form']} {selected['period']} "
+                        f"with Gemini... (~30 seconds)"
+                    ):
+                        try:
+                            from google import genai
+                            from text_analysis import run_text_analysis
+                            import datetime
 
-                                st.success(
-                                    f"Analysis complete — {selected['form']} "
-                                    f"{selected['period']}"
-                                )
-                                st.download_button(
-                                    label="⬇️ Download Text Analysis",
-                                    data=full_html,
-                                    file_name=fname,
-                                    mime="text/html",
-                                    key="dl_text",
-                                )
-                                st.markdown("---")
-                                st.components.v1.html(
-                                    result["html"],
-                                    height=5000,
-                                    scrolling=True
-                                )
+                            g_client = genai.Client(api_key=gemini_key)
+                            g_model  = "models/gemini-2.5-flash"
 
-                            except Exception as e:
-                                st.error(f"Analysis failed: {str(e)}")
-                                st.exception(e)
+                            result = run_text_analysis(
+                                active_ticker, selected_idx,
+                                g_client, g_model
+                            )
 
-                except Exception as e:
-                    st.error(f"Could not load filings: {str(e)}")
-                    st.exception(e)
+                            today    = datetime.date.today().strftime("%Y-%m-%d")
+                            fname    = (f"{active_ticker}_{selected['form']}_"
+                                       f"{selected['period']}_{today}.html")
+                            full_html = (
+                                "<html><body style='max-width:900px;"
+                                "margin:20px auto;font-family:-apple-system,sans-serif'>"
+                                + result["html"] + "</body></html>"
+                            )
+
+                            st.success(
+                                f"Analysis complete — {selected['form']} "
+                                f"{selected['period']}"
+                            )
+                            st.download_button(
+                                label="⬇️ Download Text Analysis",
+                                data=full_html,
+                                file_name=fname,
+                                mime="text/html",
+                                key="dl_text",
+                            )
+                            st.markdown("---")
+                            st.components.v1.html(
+                                result["html"],
+                                height=5000,
+                                scrolling=True
+                            )
+
+                        except Exception as e:
+                            st.error(f"Analysis failed: {str(e)}")
+                            st.exception(e)
+
+            except Exception as e:
+                st.error(f"Could not load filings: {str(e)}")
+                st.exception(e)
