@@ -194,8 +194,22 @@ def run_balance_quality(ticker: str, r: float = 0.09) -> dict:
     interest_coverage  = op_income / interest_exp if interest_exp else None
     debt_to_equity     = total_liab / equity if equity else None
 
+    # Get latest NOA and OI for tangible RNOA calculation (Change 1)
+    try:
+        from rnoa import get_noa_series, get_income_statement
+        _noa_df = get_noa_series(facts, years=2)
+        _is_df  = get_income_statement(facts, years=2)
+        NOA_latest      = _noa_df.iloc[-1]["NOA"] if not _noa_df.empty else None
+        OI_latest       = _is_df.iloc[-1]["operating_income_aftertax"] if not _is_df.empty else None
+        reported_rnoa   = f"{OI_latest/_noa_df.iloc[-2]['NOA']:.1%}" if (OI_latest and len(_noa_df)>1 and _noa_df.iloc[-2]["NOA"]!=0) else "N/A"
+    except Exception:
+        NOA_latest, OI_latest, reported_rnoa = None, None, "N/A"
+
     result = {
         "ticker":             ticker.upper(),
+        "NOA_latest":         NOA_latest,
+        "OI_latest":          OI_latest,
+        "reported_rnoa":      reported_rnoa,
         "fy_end":             fy,
         "total_assets":       total_assets,
         "equity":             equity,
@@ -278,9 +292,32 @@ def _render_html(R: dict) -> str:
             f'<td style="padding:8px 10px;border-bottom:1px solid #f0f2f5;text-align:right;font-weight:600;color:{color}">{_fmt_pct(pct)}</td>') + (
             f'<td style="padding:8px 10px;border-bottom:1px solid #f0f2f5;text-align:right;color:{color}">{signal}</td></tr>')
 
-    a(bs_row("Goodwill",
-             R["goodwill"], R["goodwill_pct"],
-             0.10, 0.30, "impairment risk if acquisitions underperform"))
+    gw_pct = R["goodwill_pct"] or 0
+    if gw_pct > 0.30:
+        gw_color  = "#e74c3c"
+        gw_signal = "🔴 High goodwill — investigate before proceeding. Has there been a major acquisition in the last 3-5 years? Check SEC EDGAR 10-K for recent business combinations and impairment tests."
+    elif gw_pct > 0.10:
+        gw_color  = "#f39c12"
+        gw_signal = "🟡 Moderate — impairment risk if acquisitions underperform"
+    else:
+        gw_color  = "#27ae60"
+        gw_signal = "✅ Low"
+
+    # Tangible RNOA (Change 1 addition)
+    tang_noa = R.get("NOA_latest", 0) - (R["goodwill"] or 0) - (R["intangibles"] or 0)
+    tang_rnoa_str = ""
+    if R.get("OI_latest") and tang_noa > 0:
+        tang_rnoa = R["OI_latest"] / tang_noa
+        tang_rnoa_str = f'<tr><td style="padding:8px 10px;border-bottom:1px solid #f0f2f5;color:#888;font-size:12px" colspan="2">Tangible RNOA (OI / NOA ex-goodwill): <strong>{tang_rnoa:.1%}</strong> vs reported RNOA {R.get("reported_rnoa","N/A")}</td><td colspan="2" style="padding:8px 10px;border-bottom:1px solid #f0f2f5;color:#888;font-size:12px">Lower tangible RNOA = more goodwill-dependent profitability</td></tr>'
+    elif R.get("OI_latest") and tang_noa <= 0:
+        tang_rnoa_str = '<tr><td colspan="4" style="padding:8px 10px;border-bottom:1px solid #f0f2f5;background:#fff5f5;color:#e74c3c;font-size:12px">⚠️ Tangible NOA is near zero or negative — reported RNOA is entirely goodwill-dependent. Verify acquired businesses generate returns above purchase price.</td></tr>'
+
+    a(f'<tr><td style="padding:8px 10px;border-bottom:1px solid #f0f2f5">Goodwill</td>')
+    a(f'<td style="padding:8px 10px;border-bottom:1px solid #f0f2f5;text-align:right">{_fmt_m(R["goodwill"])}</td>')
+    a(f'<td style="padding:8px 10px;border-bottom:1px solid #f0f2f5;text-align:right;font-weight:600;color:{gw_color}">{_fmt_pct(R["goodwill_pct"])}</td>')
+    a(f'<td style="padding:8px 10px;border-bottom:1px solid #f0f2f5;color:{gw_color}">{gw_signal}</td></tr>')
+    if tang_rnoa_str:
+        a(tang_rnoa_str)
     a(bs_row("Intangibles (ex goodwill)",
              R["intangibles"], R["intangibles_pct"],
              0.05, 0.20, "amortisation drag on future earnings"))
