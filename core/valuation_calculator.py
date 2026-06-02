@@ -170,9 +170,13 @@ def _pe_mult(g):
     return 12
 
 
-def _signal(mos):
+def _signal(mos, cagr=None):
     if mos is None:    return "N/A"
-    if mos >= 0.30:    return "STRONG BUY"
+    # Change 7: rename STRONG BUY when CAGR > 30%
+    if mos >= 0.30:
+        if cagr and cagr > 0.30:
+            return "OPTIMISTIC — verify growth assumption"
+        return "STRONG BUY"
     if mos >= 0.20:    return "BUY"
     if mos >= 0.10:    return "WATCH"
     if mos >= 0.00:    return "FAIR VALUE"
@@ -403,7 +407,7 @@ def run_eps_valuation(ticker: str) -> dict:
             mos = _sdiv((fv or 0) - (pr or 0), fv) if (fv and pr) else None
             fvs[name] = dict(
                 growth=g, multiple=m, base_eps=be,
-                fair_value=fv, mos=mos, signal=_signal(mos),
+                fair_value=fv, mos=mos, signal=_signal(mos, g),
                 fv5=(be * ((1 + g) ** 5) * _pe_mult(g * 0.7)
                      if be is not None else None)
             )
@@ -436,12 +440,13 @@ def _xm(v):    return _fmt(v, suffix="x")
 def _bn(v):    return _fmt(v/1e9, "$", "B") if v else "—"
 
 SIG_COLORS = {
-    "STRONG BUY": "#27ae60",
-    "BUY":        "#2ecc71",
-    "WATCH":      "#f39c12",
-    "FAIR VALUE": "#3498db",
-    "EXPENSIVE":  "#e74c3c",
-    "N/A":        "#95a5a6",
+    "STRONG BUY":                        "#27ae60",
+    "OPTIMISTIC — verify growth assumption": "#f39c12",
+    "BUY":                               "#2ecc71",
+    "WATCH":                             "#f39c12",
+    "FAIR VALUE":                        "#3498db",
+    "EXPENSIVE":                         "#e74c3c",
+    "N/A":                               "#95a5a6",
 }
 
 def _sig_badge(sig):
