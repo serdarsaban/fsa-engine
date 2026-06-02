@@ -2,7 +2,6 @@ import streamlit as st
 import sys
 import os
 
-# ── PROJECT ROOT ─────────────────────────────────────────────
 PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, PROJECT_ROOT)
 sys.path.insert(0, os.path.join(PROJECT_ROOT, "core"))
@@ -40,124 +39,120 @@ st.markdown("""
 </style>
 """, unsafe_allow_html=True)
 
-# ── HEADER ───────────────────────────────────────────────────
 st.markdown("""
 <div class="title-block">
   <h1>📊 FSA Engine</h1>
-  <p>Financial Statement Analysis · Penman &amp; Pope + Standard Practitioner Metrics</p>
+  <p>Financial Statement Analysis · Penman &amp; Pope + Standard Metrics + 10-K/Q Text Analysis</p>
 </div>
 """, unsafe_allow_html=True)
 
 # ── SIDEBAR ──────────────────────────────────────────────────
 with st.sidebar:
-    st.markdown("### Analysis Settings")
+    st.markdown("### Settings")
     st.markdown("---")
 
     ticker = st.text_input(
         "Stock Ticker",
         value="AAPL",
         placeholder="e.g. MSFT, AAPL, NVDA",
-        help="Enter any US-listed stock ticker"
     ).upper().strip()
 
     r = st.slider(
-        "Required Return — %",
+        "Required Return (%)",
         min_value=5, max_value=15, value=9, step=1,
         help="Hurdle rate for Penman & Pope valuation"
     ) / 100
 
     st.markdown("---")
-    run_button = st.button("Run Analysis", type="primary")
+
+    # Gemini API key for Tab 3
+    st.markdown("**Tab 3 — Text Analysis**")
+    gemini_key = st.text_input(
+        "Gemini API Key",
+        type="password",
+        placeholder="Paste your Google AI Studio key",
+        help="Required for 10-K/Q text analysis only"
+    )
 
     st.markdown("---")
-    st.markdown("**Tab 1 — Penman & Pope**")
-    st.markdown("""
-    - Residual earnings valuation
-    - RNOA, PM, ATO decomposition
-    - Leverage, quality, risk
-    - Ch 6, 8, 9, 13 diagnostics
-    """)
-    st.markdown("**Tab 2 — Standard Analysis**")
-    st.markdown("""
-    - Revenue, EPS, FCF trends
-    - ROIC, ROIIC, margins
-    - Interactive DCF + EPS calculator
-    - Valuation multiples
-    """)
+    run_button = st.button("Run Analysis", type="primary")
+
     st.markdown("---")
     st.markdown(
         "<div style='font-size:11px;color:#999'>"
         "Penman &amp; Pope: FSA for Value Investing<br>"
-        "Data: SEC EDGAR + Yahoo Finance</div>",
+        "Data: SEC EDGAR + Yahoo Finance + Gemini AI</div>",
         unsafe_allow_html=True
     )
 
-# ── MAIN AREA ────────────────────────────────────────────────
+# ── MAIN ─────────────────────────────────────────────────────
 if not run_button:
-    col1, col2 = st.columns(2)
+    col1, col2, col3 = st.columns(3)
     with col1:
-        st.markdown("#### Tab 1 — Penman & Pope Report")
+        st.markdown("#### 📚 Tab 1 — Penman & Pope")
         st.markdown("""
-        Reformulated financial statements based on the
-        Penman & Pope textbook methodology.
-        - Residual earnings valuation & implied g*
-        - RNOA, PM × ATO DuPont decomposition
-        - Leverage spread and ROE decomposition
-        - Earnings quality, accruals, cash conversion
-        - Ch 6, 8, 9/13 chapter diagnostics
-        - EPS valuation calculator
-        - Investment summary with strengths/risks
+        - Residual earnings valuation & g*
+        - RNOA, PM × ATO decomposition
+        - Leverage, quality, risk diagnostics
+        - Ch 6, 8, 9/13 chapter analysis
+        - Investment summary
         """)
     with col2:
-        st.markdown("#### Tab 2 — Standard Analysis")
+        st.markdown("#### 📈 Tab 2 — Standard Analysis")
         st.markdown("""
-        Practitioner metrics used by value investors.
-        - Snapshot: P/E, P/B, PEG, EV/Sales, FCF yield
-        - 5-year trend tables with YoY % change
-        - Revenue, EPS, FCF, ROIC, ROIIC, margins
-        - Balance sheet & leverage trends
-        - Interactive intrinsic value calculator
-        - DCF (FCF-based) + EPS × exit multiple
-        - Adjustable sliders with historical context
+        - Snapshot: P/E, P/B, PEG, FCF yield
+        - 5-year trend tables with YoY change
+        - ROIC, ROIIC, margins
+        - Interactive DCF + EPS calculator
+        - Adjustable sliders
+        """)
+    with col3:
+        st.markdown("#### 📄 Tab 3 — 10-K/Q Analysis")
+        st.markdown("""
+        - Business overview & segments
+        - Risk factors & management guidance
+        - M&A activity & legal disputes
+        - Capital allocation & accounting
+        - Analyst flags — items to investigate
+        - Powered by Gemini AI
         """)
     st.markdown("---")
-    st.markdown("Enter a ticker in the sidebar and click **Run Analysis** to start.")
+    st.markdown("Enter a ticker and click **Run Analysis** to start.")
 
 else:
     if not ticker:
         st.error("Please enter a stock ticker.")
     else:
-        # ── TWO TABS ──────────────────────────────────────────
-        tab1, tab2 = st.tabs([
-            "📚 Penman & Pope Report",
+        tab1, tab2, tab3 = st.tabs([
+            "📚 Penman & Pope",
             "📈 Standard Analysis",
+            "📄 10-K/Q Text Analysis",
         ])
 
+        # ── TAB 1 ─────────────────────────────────────────────
         with tab1:
             with st.spinner(f"Running Penman & Pope analysis on {ticker}..."):
                 try:
                     from report import generate_report
                     import datetime
 
-                    html     = generate_report(ticker, r=r,
-                                               project_root=PROJECT_ROOT)
-                    today    = datetime.date.today().strftime("%Y-%m-%d")
-                    fname    = f"{ticker}_{today}.html"
-
-                    st.success(f"Penman & Pope report generated for {ticker}")
+                    html  = generate_report(ticker, r=r,
+                                            project_root=PROJECT_ROOT)
+                    today = datetime.date.today().strftime("%Y-%m-%d")
+                    st.success(f"Report generated for {ticker}")
                     st.download_button(
                         label="⬇️ Download Report",
                         data=html,
-                        file_name=fname,
+                        file_name=f"{ticker}_{today}.html",
                         mime="text/html",
                     )
                     st.markdown("---")
                     st.components.v1.html(html, height=5000, scrolling=True)
-
                 except Exception as e:
                     st.error(f"Error: {str(e)}")
                     st.exception(e)
 
+        # ── TAB 2 ─────────────────────────────────────────────
         with tab2:
             with st.spinner(f"Running standard analysis on {ticker}..."):
                 try:
@@ -166,13 +161,11 @@ else:
 
                     std_html = generate_standard_html(ticker)
                     today    = datetime.date.today().strftime("%Y-%m-%d")
-                    fname2   = f"{ticker}_standard_{today}.html"
-
                     st.success(f"Standard analysis generated for {ticker}")
                     st.download_button(
                         label="⬇️ Download Standard Report",
                         data=std_html,
-                        file_name=fname2,
+                        file_name=f"{ticker}_standard_{today}.html",
                         mime="text/html",
                         key="dl_standard",
                     )
@@ -183,7 +176,94 @@ else:
                         height=4000,
                         scrolling=True
                     )
-
                 except Exception as e:
                     st.error(f"Error: {str(e)}")
+                    st.exception(e)
+
+        # ── TAB 3 ─────────────────────────────────────────────
+        with tab3:
+            if not gemini_key:
+                st.warning(
+                    "Enter your Gemini API key in the sidebar to use text analysis."
+                )
+            else:
+                # Show filing selector
+                try:
+                    from text_analysis import get_recent_filings
+
+                    with st.spinner("Loading available filings..."):
+                        filings = get_recent_filings(ticker, n=8)
+
+                    filing_labels = [f["label"] for f in filings]
+                    selected_idx  = st.selectbox(
+                        "Select filing to analyse:",
+                        range(len(filing_labels)),
+                        format_func=lambda i: filing_labels[i],
+                    )
+
+                    col_a, col_b = st.columns([3,1])
+                    with col_b:
+                        analyse_btn = st.button(
+                            "Analyse Filing",
+                            type="primary",
+                            key="analyse_btn"
+                        )
+
+                    with col_a:
+                        selected = filings[selected_idx]
+                        st.markdown(
+                            f"**{selected['form']}** · Period: {selected['period']} "
+                            f"· Filed: {selected['filed']}"
+                        )
+
+                    if analyse_btn:
+                        with st.spinner(
+                            f"Analysing {selected['form']} {selected['period']} "
+                            f"with Gemini... (~30 seconds)"
+                        ):
+                            try:
+                                from google import genai
+                                from text_analysis import run_text_analysis
+                                import datetime
+
+                                g_client = genai.Client(api_key=gemini_key)
+                                g_model  = "models/gemini-2.5-flash"
+
+                                result = run_text_analysis(
+                                    ticker, selected_idx,
+                                    g_client, g_model
+                                )
+
+                                today = datetime.date.today().strftime("%Y-%m-%d")
+                                fname = f"{ticker}_{selected['form']}_{selected['period']}_{today}.html"
+                                full_html = (
+                                    "<html><body style='max-width:900px;margin:20px auto;"
+                                    "font-family:-apple-system,sans-serif'>"
+                                    + result["html"] + "</body></html>"
+                                )
+
+                                st.success(
+                                    f"Analysis complete — {selected['form']} "
+                                    f"{selected['period']}"
+                                )
+                                st.download_button(
+                                    label="⬇️ Download Text Analysis",
+                                    data=full_html,
+                                    file_name=fname,
+                                    mime="text/html",
+                                    key="dl_text",
+                                )
+                                st.markdown("---")
+                                st.components.v1.html(
+                                    result["html"],
+                                    height=5000,
+                                    scrolling=True
+                                )
+
+                            except Exception as e:
+                                st.error(f"Analysis failed: {str(e)}")
+                                st.exception(e)
+
+                except Exception as e:
+                    st.error(f"Could not load filings: {str(e)}")
                     st.exception(e)
