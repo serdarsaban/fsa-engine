@@ -589,6 +589,76 @@ function toggleTip(id) {
 """
 
 
+def _build_piotroski_notes(bq: dict, prof: dict) -> str:
+    """Change 4: Reconcile Piotroski with DuPont."""
+    if not bq or not prof:
+        return ""
+    notes = []
+    items = {x["name"]: x["pass"] for x in bq.get("f_items", [])}
+
+    # Gross margin vs PM
+    if not items.get("Gross margin improving"):
+        pm_df = prof.get("pm_df")
+        if pm_df is not None and len(pm_df) >= 2:
+            pm_trend = pm_df["pm_pct"].iloc[-1] - pm_df["pm_pct"].iloc[-2]
+            if pm_trend > 0.005:
+                notes.append(
+                    "Gross margin (COGS only) is falling while operating margin is improving. "
+                    "This typically indicates rising R&D or SG&A costs offsetting top-line efficiency. "
+                    "Investigate the cost structure."
+                )
+
+    # ATO: Piotroski vs DuPont
+    if not items.get("Asset turnover improving"):
+        ato_df = prof.get("ato_df")
+        if ato_df is not None and len(ato_df) >= 2:
+            ato_trend = ato_df["ato_calc"].iloc[-1] - ato_df["ato_calc"].iloc[-2]
+            if ato_trend > 0.05:
+                notes.append(
+                    "Piotroski uses total assets; DuPont uses Net Operating Assets. "
+                    "Rising DuPont ATO with falling Piotroski ATO typically means financial assets "
+                    "are growing faster than operating assets. Check whether excess cash distorts the picture."
+                )
+
+    # New shares
+    if not items.get("No new shares issued"):
+        notes.append(
+            "Shares outstanding have increased. For tech companies this is almost always SBC. "
+            "Verify whether buybacks are offsetting dilution net — SBC is a real cost not fully captured in GAAP EPS."
+        )
+
+    if not notes:
+        return ""
+    html = '<div style="background:#fffbf0;border-left:3px solid #f39c12;padding:10px 14px;border-radius:0 6px 6px 0;margin-top:8px;font-size:13px">'
+    html += "<strong>Piotroski reconciliation notes:</strong><ul style='margin:6px 0 0 16px'>"
+    for n in notes:
+        html += f"<li style='margin-bottom:4px'>{n}</li>"
+    html += "</ul></div>"
+    return html
+
+
+def _build_eps_warning(eps_val: dict) -> str:
+    """Change 7: EPS exit multiple warning."""
+    if not eps_val:
+        return ""
+    pe_fwd = eps_val.get("pe_fwd")
+    fvs    = eps_val.get("fvs", {})
+    cons   = fvs.get("Conservative", {})
+    mult   = cons.get("multiple")
+    cagr_c = eps_val.get("cagr_c", 0) or 0
+
+    if pe_fwd and mult and mult > pe_fwd * 1.5:
+        return (
+            ('<div style="background:#fffbf0;border-left:3px solid #f39c12;'
+            'padding:10px 14px;border-radius:0 6px 6px 0;margin-top:8px;font-size:13px">'
+            f'🟡 <strong>Exit multiple ({mult}x) is significantly above current forward P/E ({pe_fwd:.1f}x).</strong> '
+            'The market has already re-rated this stock. '
+            'Verify whether the historical average P/E is still an appropriate anchor.'
+            '</div>')
+        )
+    return ""
+
+
 def generate_report(ticker, r=0.09, project_root=None):
     """Generate complete upgraded HTML FSA report."""
     import sys
@@ -712,7 +782,34 @@ def generate_report(ticker, r=0.09, project_root=None):
         )
 
     def li(items):
-        return "".join("<li>{}</li>".format(i) for i in items) if items else "<li>None identified</li>"
+        return "".join("<li>{}</li>".format(i) for i in items) if items else ""
+
+    # Change 6: Structured minimum risk checklist
+    def build_risks(risks_list, val_data, bq_data, lev_data, qual_data, rnoa_data):
+        r = list(risks_list)
+        # Goodwill concentration
+        gw = bq_data.get("goodwill_pct") if bq_data else None
+        if gw and gw > 0.20:
+            r.append(f"Goodwill {gw:.0%} of assets — acquisition quality unverified")
+        # High P/B
+        pb = val_data.get("P0", 0) / val_data.get("B0", 1) if val_data.get("B0") else None
+        if pb and pb > 5:
+            r.append(f"P/B = {pb:.1f}x — significant price depends on future value creation")
+        # Piotroski
+        if bq_data:
+            fscore = bq_data.get("f_score", 9)
+            if fscore < 7:
+                failed = [x["name"] for x in bq_data.get("f_items", []) if not x["pass"]]
+                r.append(f"Piotroski {fscore}/9 — failed: {', '.join(failed)}")
+        # ROE gap
+        if lev_data:
+            rd = lev_data.get("ROE_decomp") or 0
+            ra = lev_data.get("ROE_actual") or 0
+            if abs(rd - ra) > 0.10:
+                r.append(f"ROE gap {abs(rd-ra)*100:.1f}pp — SBC or OCI distortion likely")
+        # Always include qualitative reminder
+        r.append("Qualitative risks not assessed — review MD&A for competitive, regulatory and macro threats")
+        return r if r else ["Review MD&A for qualitative risks before acting"]
 
     # Generate tooltip panels for each section
     tp = tip_panel
@@ -935,6 +1032,7 @@ def generate_report(ticker, r=0.09, project_root=None):
   <p class="card-desc">EPS-based fair value using CAGR triangulation and P/E exit multiples.
   Independent methodology — compare with the residual earnings model above.</p>
   {eps_html}
+  {eps_pe_warning}
 </div>
 
 <!-- BALANCE QUALITY -->
@@ -942,6 +1040,7 @@ def generate_report(ticker, r=0.09, project_root=None):
   <h2>Balance Sheet &amp; Credit Quality (Ch 9 / Ch 13)</h2>
   <p class="card-desc">Balance sheet risk items, Altman Z-score and Piotroski F-score.</p>
   {bq_html}
+  {piotroski_notes}
 </div>
 
 <!-- SUMMARY -->
@@ -1041,6 +1140,15 @@ def generate_report(ticker, r=0.09, project_root=None):
         ROE_d_fmt   = fmt_pct(lev["ROE_decomp"]),
         ROE_a_fmt   = fmt_pct(lev["ROE_actual"]),
         lev_comment = lev_comment,
+        roe_gap_warning = (
+            '<div style="background:#fffbf0;border-left:3px solid #f39c12;'
+            'padding:10px 14px;border-radius:0 6px 6px 0;margin-top:8px;font-size:13px">'
+            f'🟡 <strong>ROE decomposed and ROE actual differ by {abs((lev.get("ROE_decomp",0) or 0) - (lev.get("ROE_actual",0) or 0))*100:.1f}pp.</strong> '
+            'Common causes: (a) stock-based compensation reducing book equity faster than net income builds it; '
+            '(b) unrealised gains/losses in OCI; (c) share buybacks above book value. '
+            'Investigate which is the dominant driver before relying on either ROE figure.'
+            '</div>'
+        ) if lev.get("ROE_decomp") and lev.get("ROE_actual") and abs((lev["ROE_decomp"] or 0) - (lev["ROE_actual"] or 0)) > 0.10 else "",
         # Quality section
         tip_acc2    = tip("accruals_bs"),
         tip_cfo     = tip("cfo_to_oi"),
@@ -1048,12 +1156,18 @@ def generate_report(ticker, r=0.09, project_root=None):
         q_comment   = q_comment,
         # Summary
         strengths_li  = li(summary["strengths"]),
-        risks_li      = li(summary["risks"]),
+        risks_li      = li(build_risks(
+            summary["risks"], val, bq if "bq" in dir() else {},
+            lev, qual_df.iloc[-1].to_dict() if not qual_df.empty else {},
+            rnoa_df.iloc[-1].to_dict() if not rnoa_df.empty else {}
+        )),
         investigate_li= li(summary["investigate"]),
         eps_html        = eps_html,
+        eps_pe_warning  = _build_eps_warning(eps_val if "eps_val" in dir() else {}),
         prof_html       = prof_html,
         risk_html       = risk_html,
         bq_html         = bq_html,
+        piotroski_notes = _build_piotroski_notes(bq, prof if "prof" in dir() else {}),
         tip_OI          = tip("OI"),
         tip_gap         = tip("gap"),
         tip_ROE_actual  = tip("ROE_actual"),
