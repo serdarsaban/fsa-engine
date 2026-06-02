@@ -78,16 +78,21 @@ def fetch_standard_data(ticker: str) -> dict:
 
     ticker = ticker.upper()
 
-    # Yahoo Finance
+    # Yahoo Finance with retry
     stock = yf.Ticker(ticker)
-    for attempt in range(3):
+    info  = {}
+    fast  = type("obj", (object,), {})()
+    for attempt in range(4):
         try:
-            info = stock.info
             fast = stock.fast_info
-            break
+            info = stock.info
+            if info:
+                break
         except Exception:
-            if attempt < 2: time.sleep(3)
-            else: info, fast = {}, {}
+            if attempt < 3:
+                time.sleep(3 + attempt * 2)
+            else:
+                info = {}
 
     # SEC EDGAR
     cik      = get_cik(ticker)
@@ -184,6 +189,7 @@ def fetch_standard_data(ticker: str) -> dict:
     nv = ann_df["net_income"].dropna().tolist()
 
     # Snapshot
+    info     = info or {}
     price    = getattr(fast,"last_price",None) or info.get("currentPrice")
     mkt_cap  = getattr(fast,"market_cap",None) or info.get("marketCap")
     w52h     = getattr(fast,"year_high",None)  or info.get("fiftyTwoWeekHigh")
