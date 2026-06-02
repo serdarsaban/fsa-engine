@@ -691,9 +691,10 @@ def generate_report(ticker, r=0.09, project_root=None):
     print("  Fetching quality...")
     qual_df = calculate_accruals(ticker, years=5)
     print("  Fetching EPS valuation...")
+    eps_val = None
     try:
         eps_val  = run_eps_valuation(ticker)
-        eps_html = eps_val.get("html", "")
+        eps_html = eps_val.get("html", "") if eps_val else ""
     except Exception as e:
         eps_html = f"<p style='color:#e74c3c'>EPS valuation unavailable: {e}</p>"
 
@@ -1163,11 +1164,11 @@ def generate_report(ticker, r=0.09, project_root=None):
         )),
         investigate_li= li(summary["investigate"]),
         eps_html        = eps_html,
-        eps_pe_warning  = _build_eps_warning(eps_val if "eps_val" in dir() else {}),
+        eps_pe_warning  = _build_eps_warning(eps_val or {}),
         prof_html       = prof_html,
         risk_html       = risk_html,
         bq_html         = bq_html,
-        piotroski_notes = _build_piotroski_notes(bq, prof if "prof" in dir() else {}),
+        piotroski_notes = _build_piotroski_notes(bq if bq else {}, prof if prof else {}),
         tip_OI          = tip("OI"),
         tip_gap         = tip("gap"),
         tip_ROE_actual  = tip("ROE_actual"),
