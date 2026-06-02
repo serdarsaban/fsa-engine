@@ -257,6 +257,8 @@ def _fmt_x(v):
     return f"{v:.1f}x" if v is not None else "N/A"
 
 
+AMBER_STYLE = 'style="background:#fffbf0;border-left:3px solid #f39c12;border-radius:0 6px 6px 0;padding:10px 14px;font-size:13px;color:#444;line-height:1.6;margin-top:8px"'
+
 def _render_html(R: dict) -> str:
     rows = []
     a = rows.append
@@ -310,7 +312,14 @@ def _render_html(R: dict) -> str:
         tang_rnoa = R["OI_latest"] / tang_noa
         tang_rnoa_str = f'<tr><td style="padding:8px 10px;border-bottom:1px solid #f0f2f5;color:#888;font-size:12px" colspan="2">Tangible RNOA (OI / NOA ex-goodwill): <strong>{tang_rnoa:.1%}</strong> vs reported RNOA {R.get("reported_rnoa","N/A")}</td><td colspan="2" style="padding:8px 10px;border-bottom:1px solid #f0f2f5;color:#888;font-size:12px">Lower tangible RNOA = more goodwill-dependent profitability</td></tr>'
     elif R.get("OI_latest") and tang_noa <= 0:
-        tang_rnoa_str = '<tr><td colspan="4" style="padding:8px 10px;border-bottom:1px solid #f0f2f5;background:#fff5f5;color:#e74c3c;font-size:12px">⚠️ Tangible NOA is near zero or negative — reported RNOA is entirely goodwill-dependent. Verify acquired businesses generate returns above purchase price.</td></tr>'
+        _as = AMBER_STYLE
+        tang_rnoa_str = (
+            '<tr><td colspan="4" style="padding:8px 10px;border-bottom:1px solid #f0f2f5">'
+            f'<div {_as}>⚠️ Tangible NOA is near zero or negative — '
+            'reported RNOA is entirely goodwill-dependent. '
+            'Verify acquired businesses generate returns above purchase price.'
+            '</div></td></tr>'
+        )
 
     a(f'<tr><td style="padding:8px 10px;border-bottom:1px solid #f0f2f5">Goodwill</td>')
     a(f'<td style="padding:8px 10px;border-bottom:1px solid #f0f2f5;text-align:right">{_fmt_m(R["goodwill"])}</td>')
