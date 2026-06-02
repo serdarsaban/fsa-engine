@@ -251,9 +251,18 @@ def run_eps_valuation(ticker: str) -> dict:
     ticker = ticker.upper()
 
     # Fetch Yahoo Finance data
+    import time
     try:
         yft  = yf.Ticker(ticker)
-        info = yft.info
+        for attempt in range(3):
+            try:
+                info = yft.info
+                break
+            except Exception:
+                if attempt < 2:
+                    time.sleep(2 + attempt * 3)
+                else:
+                    info = {}
         try:    inc = yft.income_stmt
         except: inc = yft.financials
         try:    cf  = yft.cash_flow
