@@ -605,6 +605,7 @@ def generate_report(ticker, r=0.09, project_root=None):
     from valuation_calculator   import run_eps_valuation
     from profitability          import run_profitability
     from risk                   import run_risk_diagnostic
+    from balance_quality        import run_balance_quality
 
     # Reset tip counter for each report
     _tip_counter[0] = 0
@@ -625,6 +626,20 @@ def generate_report(ticker, r=0.09, project_root=None):
         eps_html = eps_val.get("html", "")
     except Exception as e:
         eps_html = f"<p style='color:#e74c3c'>EPS valuation unavailable: {e}</p>"
+
+    print("  Fetching balance & credit quality...")
+    try:
+        bq        = run_balance_quality(ticker)
+        bq_html   = bq.get("html", "")
+    except Exception as e:
+        bq_html = f"<p style='color:#e74c3c'>Balance quality unavailable: {e}</p>"
+
+    print("  Fetching balance & credit quality...")
+    try:
+        bq        = run_balance_quality(ticker)
+        bq_html   = bq.get("html", "")
+    except Exception as e:
+        bq_html = f"<p style='color:#e74c3c'>Balance quality unavailable: {e}</p>"
 
     print("  Fetching Ch 8 risk diagnostic...")
     try:
@@ -922,6 +937,20 @@ def generate_report(ticker, r=0.09, project_root=None):
   {eps_html}
 </div>
 
+<!-- BALANCE QUALITY -->
+<div class="card">
+  <h2>Balance Sheet &amp; Credit Quality (Ch 9 / Ch 13)</h2>
+  <p class="card-desc">Balance sheet risk items, Altman Z-score and Piotroski F-score.</p>
+  {bq_html}
+</div>
+
+<!-- BALANCE QUALITY -->
+<div class="card">
+  <h2>Balance Sheet &amp; Credit Quality (Ch 9 / Ch 13)</h2>
+  <p class="card-desc">Balance sheet risk items, Altman Z-score and Piotroski F-score.</p>
+  {bq_html}
+</div>
+
 <!-- SUMMARY -->
 <div class="card">
   <h2>Investment Summary</h2>
@@ -1031,6 +1060,7 @@ def generate_report(ticker, r=0.09, project_root=None):
         eps_html        = eps_html,
         prof_html       = prof_html,
         risk_html       = risk_html,
+        bq_html         = bq_html,
         tip_OI          = tip("OI"),
         tip_gap         = tip("gap"),
         tip_ROE_actual  = tip("ROE_actual"),
