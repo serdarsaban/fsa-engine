@@ -604,6 +604,7 @@ def generate_report(ticker, r=0.09, project_root=None):
                                         generate_commentary)
     from valuation_calculator   import run_eps_valuation
     from profitability          import run_profitability
+    from risk                   import run_risk_diagnostic
 
     # Reset tip counter for each report
     _tip_counter[0] = 0
@@ -624,6 +625,13 @@ def generate_report(ticker, r=0.09, project_root=None):
         eps_html = eps_val.get("html", "")
     except Exception as e:
         eps_html = f"<p style='color:#e74c3c'>EPS valuation unavailable: {e}</p>"
+
+    print("  Fetching Ch 8 risk diagnostic...")
+    try:
+        risk_result = run_risk_diagnostic(ticker, r=r)
+        risk_html   = risk_result.get("html", "")
+    except Exception as e:
+        risk_html = f"<p style='color:#e74c3c'>Risk diagnostic unavailable: {e}</p>"
 
     print("  Fetching Ch 6 profitability...")
     try:
@@ -890,6 +898,14 @@ def generate_report(ticker, r=0.09, project_root=None):
   <div class="commentary">{q_comment}</div>
 </div>
 
+<!-- CH 8 RISK -->
+<div class="card">
+  <h2>Risk Diagnostic (Ch 8)</h2>
+  <p class="card-desc">No-growth value, speculative value, value-at-risk table,
+  expected return profile and safe equity scorecard.</p>
+  {risk_html}
+</div>
+
 <!-- CH 6 PROFITABILITY -->
 <div class="card">
   <h2>Profitability Diagnostic (Ch 6)</h2>
@@ -1014,6 +1030,7 @@ def generate_report(ticker, r=0.09, project_root=None):
         investigate_li= li(summary["investigate"]),
         eps_html        = eps_html,
         prof_html       = prof_html,
+        risk_html       = risk_html,
         tip_OI          = tip("OI"),
         tip_gap         = tip("gap"),
         tip_ROE_actual  = tip("ROE_actual"),
