@@ -603,6 +603,7 @@ def generate_report(ticker, r=0.09, project_root=None):
                                         get_quality_score,
                                         generate_commentary)
     from valuation_calculator   import run_eps_valuation
+    from profitability          import run_profitability
 
     # Reset tip counter for each report
     _tip_counter[0] = 0
@@ -619,10 +620,17 @@ def generate_report(ticker, r=0.09, project_root=None):
     qual_df = calculate_accruals(ticker, years=4)
     print("  Fetching EPS valuation...")
     try:
-        eps_val = run_eps_valuation(ticker)
+        eps_val  = run_eps_valuation(ticker)
         eps_html = eps_val.get("html", "")
     except Exception as e:
         eps_html = f"<p style='color:#e74c3c'>EPS valuation unavailable: {e}</p>"
+
+    print("  Fetching Ch 6 profitability...")
+    try:
+        prof     = run_profitability(ticker, years=4)
+        prof_html = prof.get("html", "")
+    except Exception as e:
+        prof_html = f"<p style='color:#e74c3c'>Profitability diagnostic unavailable: {e}</p>"
 
     qual_latest = qual_df.iloc[-1]
     q_score, q_signal, _ = get_quality_score(
@@ -882,6 +890,14 @@ def generate_report(ticker, r=0.09, project_root=None):
   <div class="commentary">{q_comment}</div>
 </div>
 
+<!-- CH 6 PROFITABILITY -->
+<div class="card">
+  <h2>Profitability Diagnostic (Ch 6)</h2>
+  <p class="card-desc">Full DuPont decomposition: RNOA = PM × ATO.
+  Level 2 drivers, operating liability leverage, and cash conversion cycle.</p>
+  {prof_html}
+</div>
+
 <!-- EPS VALUATION -->
 <div class="card">
   <h2>EPS Valuation (Book Calculator)</h2>
@@ -997,6 +1013,7 @@ def generate_report(ticker, r=0.09, project_root=None):
         risks_li      = li(summary["risks"]),
         investigate_li= li(summary["investigate"]),
         eps_html        = eps_html,
+        prof_html       = prof_html,
         tip_OI          = tip("OI"),
         tip_gap         = tip("gap"),
         tip_ROE_actual  = tip("ROE_actual"),
