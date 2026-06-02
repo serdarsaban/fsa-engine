@@ -258,7 +258,7 @@ def run_valuation(
     )
 
     # Historical ReOI growth — the market challenge
-    hist = calculate_historical_reoi_growth(ticker, r=r, years=years)
+    hist = calculate_historical_reoi_growth(ticker, r=r, years=5)
     hist_cagr = hist["cagr"] if hist else None
 
     base_val = scenarios["base"]
