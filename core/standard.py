@@ -27,11 +27,23 @@ def _cagr(s, e, n):
 
 
 def _fmt_m(v):
+    """Format a value already in $millions.
+    1,000,000m = $1tn  |  1,000m = $1bn  |  <1,000m = $Xm
+    """
     if v is None or (isinstance(v, float) and np.isnan(v)):
         return "—"
-    if abs(v) >= 1e6:  return f"${v/1e6:.2f}tn"
-    if abs(v) >= 1e3:  return f"${v/1e3:.1f}bn"
+    if abs(v) >= 1_000_000: return f"${v/1_000_000:.2f}tn"
+    if abs(v) >= 1_000:     return f"${v/1_000:.1f}bn"
     return f"${v:.0f}m"
+
+def _fmt_raw(v):
+    """Format a raw dollar value (not pre-converted to millions)."""
+    if v is None or (isinstance(v, float) and np.isnan(v)):
+        return "—"
+    if abs(v) >= 1e12: return f"${v/1e12:.2f}tn"
+    if abs(v) >= 1e9:  return f"${v/1e9:.1f}bn"
+    if abs(v) >= 1e6:  return f"${v/1e6:.1f}m"
+    return f"${v:.0f}"
 
 def _fmt_pct(v):
     if v is None or (isinstance(v, float) and np.isnan(v)):
