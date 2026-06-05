@@ -683,7 +683,35 @@ def generate_report(ticker, r=0.09, project_root=None):
     today = datetime.date.today().strftime("%B %d, %Y")
 
     print("  Fetching valuation...")
-    val     = run_valuation(ticker, r=r, verbose=False)
+    # Check for foreign filer (20-F) before running
+    try:
+        val = run_valuation(ticker, r=r, verbose=False)
+    except (KeyError, IndexError, ValueError) as e:
+        if "fiscal_year_end" in str(e) or "empty" in str(e).lower():
+            return """
+            <div style="font-family:-apple-system,sans-serif;max-width:700px;
+            margin:60px auto;text-align:center;color:#2c3e50">
+            <div style="font-size:48px;margin-bottom:16px">🌍</div>
+            <h2 style="font-size:24px;font-weight:600">Foreign Private Issuer</h2>
+            <p style="color:#666;font-size:15px;line-height:1.7;margin-top:12px">
+            <strong>""" + ticker + """</strong> appears to be a foreign private issuer
+            that files with the SEC using <strong>Form 20-F</strong> (IFRS accounting)
+            rather than Form 10-K (US GAAP).<br><br>
+            The Penman &amp; Pope analysis is calibrated for US GAAP filers.
+            IFRS filings use different XBRL concept names which are not yet
+            supported in this engine.<br><br>
+            <strong>What you can do:</strong><br>
+            Use <strong>Tab 2 — Standard Analysis</strong> for market metrics,
+            or try Tab 3 for the 10-K/Q text analysis if the company files
+            annual reports with the SEC.
+            </p>
+            <div style="margin-top:24px;padding:16px;background:#f8f9fa;
+            border-radius:8px;font-size:13px;color:#888">
+            Examples of foreign filers: ICLR (ICON), ASML, SAP, NVO (Novo Nordisk)
+            </div>
+            </div>
+            """
+        raise
     print("  Fetching RNOA series...")
     rnoa_df = calculate_rnoa_series(ticker, r=r, years=5)
     print("  Fetching leverage...")
